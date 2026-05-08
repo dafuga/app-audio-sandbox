@@ -72,6 +72,7 @@ export class EventRecorder {
 		if (!(await canUseMacSpeechReview())) return speechFiles;
 		for (const event of this.events) {
 			if (event.type !== 'stt:result') continue;
+			if (event.payload?.source === 'nativeAudio-loopback') continue;
 			const filePath = await this.captureSpeechReviewFile(event);
 			if (filePath) speechFiles.set(event, filePath);
 		}

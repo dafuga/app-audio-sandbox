@@ -40,6 +40,9 @@ function reviewItem(
 		return [audioReviewItem(event, atMs, artifactDir)];
 	}
 	if (event.type === 'stt:result') {
+		if (event.payload?.source === 'nativeAudio-loopback') {
+			return [loopbackReviewItem(event, atMs)];
+		}
 		return [speechReviewItem(event, atMs, artifactDir, speechFiles.get(event))];
 	}
 	if (event.type === 'nativeAudio:stopVoicePlayback') {
@@ -54,6 +57,16 @@ function audioReviewItem(event: SandboxEvent, atMs: number, artifactDir: string)
 		file: relativeFile(artifactDir, event.payload?.file),
 		kind: 'app-audio',
 		label: 'AI voice playback'
+	};
+}
+
+function loopbackReviewItem(event: SandboxEvent, atMs: number): ReviewItem {
+	const text = String(event.payload?.text ?? '');
+	return {
+		atMs,
+		kind: 'scripted-stt',
+		label: `Sandbox mic heard app audio: ${text}`,
+		text
 	};
 }
 
@@ -123,7 +136,7 @@ function playItem(item) {
     return;
   }
   if (!item.file) {
-    log(item.label + ' at ' + item.atMs + 'ms (no review audio file)');
+    log(item.label + ' at ' + item.atMs + 'ms');
     return;
   }
   const audio = new Audio(item.file);

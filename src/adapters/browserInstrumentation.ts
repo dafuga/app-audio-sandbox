@@ -1,6 +1,7 @@
 import type { SandboxMode } from '../core/types';
 
 interface InstrumentationOptions {
+	loopbackAudioToMic: boolean;
 	mode: SandboxMode;
 	nativeAudio: boolean;
 	nativeDurationMs: number;
@@ -20,7 +21,13 @@ const SCRIPT_TEMPLATE = `(() => {
     win.appAudioSandboxEmit?.(event).catch?.(() => undefined);
   };
   const capture = (payload) => win.appAudioSandboxCaptureAudio?.(payload).catch?.(() => undefined);
-  win.__appAudioSandbox = { events, emit, nativeAudio: options.nativeAudio };
+  let nextNativeAudioTranscript = '';
+  win.__appAudioSandbox = {
+    events,
+    emit,
+    nativeAudio: options.nativeAudio,
+    setNextNativeAudioTranscript: (text) => { nextNativeAudioTranscript = String(text || ''); }
+  };
 
   class FakeSpeechRecognition {
     constructor() {
@@ -35,16 +42,16 @@ const SCRIPT_TEMPLATE = `(() => {
       emit('stt:stop');
       setTimeout(() => this.onend?.(), 0);
     }
-    emitSpeech(text, isFinal = true) {
-      emit('stt:result', { text, isFinal });
+    emitSpeech(text, isFinal = true, source = 'scripted') {
+      emit('stt:result', { text, isFinal, source });
       this.onresult?.({ resultIndex: 0, results: { length: 1, 0: { isFinal, 0: { transcript: text } } } });
     }
   }
 
-  win.__appAudioSandbox.emitSpeech = (text, isFinal = true) => {
+  win.__appAudioSandbox.emitSpeech = (text, isFinal = true, source = 'scripted') => {
     const recognition = win.__appAudioSandboxRecognition;
     if (!recognition) throw new Error('Speech recognition has not started');
-    recognition.emitSpeech(text, isFinal);
+    recognition.emitSpeech(text, isFinal, source);
   };
   Object.defineProperty(win, 'SpeechRecognition', { value: FakeSpeechRecognition, configurable: true });
   Object.defineProperty(win, 'webkitSpeechRecognition', { value: FakeSpeechRecognition, configurable: true });
@@ -102,6 +109,15 @@ const SCRIPT_TEMPLATE = `(() => {
         });
         if (options.mode === 'record-audio') {
           await capture({ name: 'native-tts', source: 'nativeAudio', mimeType, base64: audioOptions.audioContent || '' });
+        }
+        if (options.loopbackAudioToMic && nextNativeAudioTranscript) {
+          const loopbackText = nextNativeAudioTranscript;
+          nextNativeAudioTranscript = '';
+          setTimeout(() => {
+            const recognition = win.__appAudioSandboxRecognition;
+            emit('mic:loopback', { text: loopbackText, source: 'nativeAudio' });
+            recognition?.emitSpeech?.(loopbackText, true, 'nativeAudio-loopback');
+          }, 30);
         }
         await new Promise((resolve) => setTimeout(resolve, options.nativeDurationMs));
         emit(stopped ? 'nativeAudio:endedAfterStop' : 'nativeAudio:end');

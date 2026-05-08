@@ -4,8 +4,8 @@
 audio flows without playing sound through your speakers.
 
 It launches or attaches to an app, injects browser audio/STT/TTS instrumentation,
-records events, and can capture TTS audio artifacts while keeping playback muted by
-default.
+records events, captures TTS audio artifacts, and loops captured app audio back
+into the sandbox microphone while keeping playback muted by default.
 
 ## Install
 

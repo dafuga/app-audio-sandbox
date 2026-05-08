@@ -15,11 +15,7 @@ export async function installNudgeRoutes(runtime: ScenarioRuntime): Promise<Nudg
 	await runtime.page.route(/\/api\/messages(?:\?|$)/, (route) =>
 		messagesRoute(route, runtime, state)
 	);
-	if (!runtime.realTts) {
-		await runtime.page.route(/\/api\/voice\/tts(?:\?|$)/, (route) =>
-			ttsRoute(route, runtime, state)
-		);
-	}
+	await runtime.page.route(/\/api\/voice\/tts(?:\?|$)/, (route) => ttsRoute(route, runtime, state));
 	return state;
 }
 
@@ -81,6 +77,14 @@ async function ttsRoute(
 		text,
 		voiceName: payload.voiceName
 	});
+	await runtime.page.evaluate(
+		(transcript) => window.__appAudioSandbox.setNextNativeAudioTranscript(transcript),
+		text
+	);
+	if (runtime.realTts) {
+		await route.continue();
+		return;
+	}
 	await fulfillJson(route, {
 		success: true,
 		audioContent: fakeAudioBase64(text),

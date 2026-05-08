@@ -86,6 +86,7 @@ export class PlaywrightRunnerAdapter {
 		});
 		await page.addInitScript({
 			content: createBrowserInstrumentationScript({
+				loopbackAudioToMic: true,
 				mode: resolveMode(options),
 				nativeAudio: true,
 				nativeDurationMs: 10_000

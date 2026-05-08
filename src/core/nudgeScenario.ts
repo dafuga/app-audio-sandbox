@@ -62,6 +62,17 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 		() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'),
 		'native TTS did not start'
 	);
+	await waitFor(
+		() => hasEvent(runtime.page, 'mic:loopback'),
+		'app audio did not reach sandbox mic'
+	);
+	await runtime.page.waitForTimeout(250);
+	assertEqual(state.streamRequests.length, 1, 'app audio loopback should not submit a user turn');
+	assertEqual(
+		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
+		0,
+		'app audio loopback should not stop itself'
+	);
 	await emitSpeech(runtime, 'Hi Daniel wait stop please');
 	await waitFor(() => state.streamRequests.length === 2, 'cutoff speech was not submitted');
 	assertEqual(
@@ -80,9 +91,17 @@ async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
 	await openVoiceMode(runtime);
 	await emitSpeech(runtime, 'hello can you hear me');
 	await waitFor(() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'), 'TTS did not start');
-	await emitSpeech(runtime, 'Hi Daniel I am still talking and should stop when interrupted', false);
+	await waitFor(
+		() => hasEvent(runtime.page, 'mic:loopback'),
+		'app audio did not reach sandbox mic'
+	);
 	await runtime.page.waitForTimeout(900);
 	assertEqual(state.streamRequests.length, 1, 'assistant echo should not create a new AI request');
+	assertEqual(
+		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
+		0,
+		'assistant echo should not stop voice playback'
+	);
 }
 
 async function runSttWarmup(runtime: ScenarioRuntime): Promise<void> {
@@ -111,5 +130,11 @@ async function emitSpeech(runtime: ScenarioRuntime, text: string, isFinal = true
 async function hasEvent(page: Page, type: string): Promise<boolean> {
 	return page.evaluate((eventType) => {
 		return window.__appAudioSandbox.events.some((event) => event.type === eventType);
+	}, type);
+}
+
+async function eventCount(page: Page, type: string): Promise<number> {
+	return page.evaluate((eventType) => {
+		return window.__appAudioSandbox.events.filter((event) => event.type === eventType).length;
 	}, type);
 }

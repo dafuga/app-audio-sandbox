@@ -30,11 +30,13 @@ test('lists built-in nudge scenarios', () => {
 
 test('browser instrumentation installs muted audio hooks', () => {
 	const script = createBrowserInstrumentationScript({
+		loopbackAudioToMic: true,
 		mode: 'record-audio',
 		nativeAudio: true,
 		nativeDurationMs: 1000
 	});
 	expect(script).toContain('__appAudioSandboxNativeVoicePlayback');
+	expect(script).toContain('mic:loopback');
 	expect(script).toContain('SpeechRecognition');
 	expect(script).toContain('HTMLMediaElement.prototype.play');
 });
