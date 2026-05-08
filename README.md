@@ -1,6 +1,6 @@
 # App Audio Sandbox
 
-`@dafuga/app-audio-sandbox` is a Playwright-powered CLI for testing app voice and
+`app-audio-sandbox` is a Playwright-powered CLI for testing app voice and
 audio flows without playing sound through your speakers.
 
 It launches or attaches to an app, injects browser audio/STT/TTS instrumentation,
@@ -10,7 +10,7 @@ default.
 ## Install
 
 ```bash
-npm install -g @dafuga/app-audio-sandbox
+npm install -g app-audio-sandbox
 ```
 
 ## Usage

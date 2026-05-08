@@ -1,5 +1,5 @@
 {
-	"name": "@dafuga/app-audio-sandbox",
+	"name": "app-audio-sandbox",
 	"version": "0.1.0",
 	"description": "A Playwright-powered silent audio sandbox for app voice flows.",
 	"type": "module",
