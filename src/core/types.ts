@@ -15,6 +15,7 @@ export interface SandboxRunOptions {
 	headed?: boolean;
 	outDir?: string;
 	recordAudio?: boolean;
+	realTts?: boolean;
 	timeoutMs?: number;
 	url?: string;
 }
@@ -50,6 +51,7 @@ export interface ScenarioRuntime {
 	page: Page;
 	recordAudio: (capture: AudioCapture) => void;
 	recorder: EventRecorder;
+	realTts: boolean;
 	routeJson: (route: Route, body: unknown, status?: number) => Promise<void>;
 }
 

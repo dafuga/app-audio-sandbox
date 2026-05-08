@@ -2,7 +2,7 @@ import type { Page } from 'playwright';
 import { waitFor } from '../utils/waitFor';
 import { assertEqual } from './assertions';
 import type { SandboxScenario, ScenarioRuntime } from './types';
-import { nudgeConversationUrl } from './nudgeFixtures';
+import { nudgeConversationUrl, nudgeSandboxJwt } from './nudgeFixtures';
 import { installNudgeRoutes, type NudgeRouteState } from './nudgeRoutes';
 
 const DEFAULT_NUDGE_URL = 'http://127.0.0.1:1122';
@@ -37,11 +37,11 @@ async function runNudgeScenario(name: string, runtime: ScenarioRuntime): Promise
 
 async function seedNudgeAuth(page: Page): Promise<void> {
 	await page.goto('/login', { waitUntil: 'domcontentloaded' });
-	await page.evaluate(() => {
-		localStorage.setItem('nudge_token', 'voice-sandbox-token');
+	await page.evaluate((token) => {
+		localStorage.setItem('nudge_token', token);
 		localStorage.setItem('nudge_tts_engine', 'grok');
 		localStorage.setItem('nudge_user', JSON.stringify({ email: 'voice-sandbox@example.com' }));
-	});
+	}, nudgeSandboxJwt());
 }
 
 async function openVoiceMode(runtime: ScenarioRuntime): Promise<void> {

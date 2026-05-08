@@ -104,6 +104,7 @@ export class PlaywrightRunnerAdapter {
 			page,
 			recordAudio: (capture) => void recorder.captureAudio(capture),
 			recorder,
+			realTts: options.realTts === true,
 			routeJson: (route, body, status) =>
 				route.fulfill({
 					status: status ?? 200,

@@ -5,6 +5,7 @@ import { afterEach, expect, test } from 'vitest';
 import { createBrowserInstrumentationScript } from '../src/adapters/browserInstrumentation';
 import { resolveMode } from '../src/config/sandboxConfig';
 import { EventRecorder } from '../src/core/EventRecorder';
+import { nudgeSandboxJwt } from '../src/core/nudgeFixtures';
 import { listScenarios } from '../src/core/scenarios';
 
 let tempDirs: string[] = [];
@@ -52,4 +53,8 @@ test('event recorder writes events and captured audio files', async () => {
 	const eventsFile = await recorder.writeEvents();
 	expect(recorder.getAudioFiles()).toHaveLength(1);
 	expect(await readFile(eventsFile, 'utf8')).toContain('audio:capture');
+});
+
+test('nudge sandbox jwt has a valid jwt shape', () => {
+	expect(nudgeSandboxJwt().split('.')).toHaveLength(3);
 });

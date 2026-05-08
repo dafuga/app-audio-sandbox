@@ -23,6 +23,7 @@ program
 	.option('--browser <name>', 'chromium, firefox, or webkit', 'chromium')
 	.option('--headed', 'show the browser window')
 	.option('--record-audio', 'capture audio artifacts without speaker playback')
+	.option('--real-tts', 'use the target app TTS endpoint instead of mocked audio')
 	.option('--audible', 'allow sound to play through speakers')
 	.option('--timeout-ms <ms>', 'target readiness timeout in milliseconds', parseNumber)
 	.action(async (rawOptions) => {
@@ -49,6 +50,7 @@ function normalizeOptions(rawOptions: Record<string, unknown>): SandboxRunOption
 		headed: Boolean(rawOptions.headed),
 		outDir: stringOption(rawOptions.outDir),
 		recordAudio: Boolean(rawOptions.recordAudio),
+		realTts: Boolean(rawOptions.realTts),
 		scenario: String(rawOptions.scenario),
 		timeoutMs: numberOption(rawOptions.timeoutMs),
 		url: stringOption(rawOptions.url)

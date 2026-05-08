@@ -19,11 +19,14 @@ npm install -g app-audio-sandbox
 app-audio-sandbox list
 app-audio-sandbox run --scenario nudge-voice-cutoff
 app-audio-sandbox run --scenario nudge-voice-cutoff --record-audio
+app-audio-sandbox run --scenario nudge-voice-cutoff --record-audio --real-tts
 app-audio-sandbox run --scenario nudge-voice-cutoff --audible
 ```
 
 `--record-audio` captures audio source files without speaker playback. `--audible`
-is the only mode that allows sound to reach the speaker.
+is the only mode that allows sound to reach the speaker. `--real-tts` lets the
+target app's TTS endpoint generate listenable audio instead of the deterministic
+mock audio used by default.
 
 ## Built-In Scenarios
 

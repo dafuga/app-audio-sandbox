@@ -15,7 +15,11 @@ export async function installNudgeRoutes(runtime: ScenarioRuntime): Promise<Nudg
 	await runtime.page.route(/\/api\/messages(?:\?|$)/, (route) =>
 		messagesRoute(route, runtime, state)
 	);
-	await runtime.page.route(/\/api\/voice\/tts(?:\?|$)/, (route) => ttsRoute(route, runtime, state));
+	if (!runtime.realTts) {
+		await runtime.page.route(/\/api\/voice\/tts(?:\?|$)/, (route) =>
+			ttsRoute(route, runtime, state)
+		);
+	}
 	return state;
 }
 
