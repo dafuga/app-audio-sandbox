@@ -12,6 +12,7 @@ interface Window {
 		nativeAudio: boolean;
 		setNextNativeAudioTranscript: (text: string) => void;
 	};
+	__appAudioSandboxRecognition?: unknown;
 	appAudioSandboxCaptureAudio?: (capture: unknown) => Promise<void>;
 	appAudioSandboxEmit?: (event: AppAudioSandboxBrowserEvent) => Promise<void>;
 }

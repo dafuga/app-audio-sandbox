@@ -1,64 +1,63 @@
 import type { Page } from 'playwright';
 import { waitFor } from '../utils/waitFor';
 import { assertEqual } from './assertions';
+import { fluoraConversationUrl } from './fluoraFixtures';
+import { installFluoraRoutes, type FluoraRouteState } from './fluoraRoutes';
 import type { SandboxScenario, ScenarioRuntime } from './types';
-import { nudgeConversationUrl, nudgeSandboxJwt } from './nudgeFixtures';
-import { installNudgeRoutes, type NudgeRouteState } from './nudgeRoutes';
 
-const DEFAULT_NUDGE_URL = 'http://127.0.0.1:1122';
-const DEFAULT_NUDGE_CWD = '/Users/danielfugere/projects/nudge';
+const DEFAULT_FLUORA_URL = 'http://127.0.0.1:8899';
+const DEFAULT_FLUORA_CWD = '/Users/danielfugere/projects/fluora';
 
-export function createNudgeScenario(name: string): SandboxScenario {
+export function createFluoraScenario(name: string): SandboxScenario {
 	return {
 		name,
-		description: `Nudge ${name} voice sandbox scenario`,
+		description: `Fluora ${name} voice sandbox scenario`,
 		defaultTarget: {
 			appCommand: 'bun run dev',
-			appCwd: DEFAULT_NUDGE_CWD,
-			readyUrl: DEFAULT_NUDGE_URL,
-			url: nudgeConversationUrl(DEFAULT_NUDGE_URL)
+			appCwd: DEFAULT_FLUORA_CWD,
+			readyUrl: DEFAULT_FLUORA_URL,
+			url: fluoraConversationUrl(DEFAULT_FLUORA_URL)
 		},
-		setup: setupNudgeScenario,
-		run: (runtime) => runNudgeScenario(name, runtime)
+		setup: setupFluoraScenario,
+		run: (runtime) => runFluoraScenario(name, runtime)
 	};
 }
 
-async function setupNudgeScenario(runtime: ScenarioRuntime): Promise<void> {
-	const state = await installNudgeRoutes(runtime);
-	await seedNudgeAuth(runtime.page);
-	(runtime as ScenarioRuntime & { nudgeState: NudgeRouteState }).nudgeState = state;
+async function setupFluoraScenario(runtime: ScenarioRuntime): Promise<void> {
+	const state = await installFluoraRoutes(runtime);
+	await seedFluoraAuth(runtime.page);
+	(runtime as ScenarioRuntime & { fluoraState: FluoraRouteState }).fluoraState = state;
 }
 
-async function runNudgeScenario(name: string, runtime: ScenarioRuntime): Promise<void> {
-	if (name === 'nudge-echo-filter') return runEchoFilter(runtime);
-	if (name === 'nudge-stt-warmup') return runSttWarmup(runtime);
+async function seedFluoraAuth(page: Page): Promise<void> {
+	await page.goto('/login', { waitUntil: 'domcontentloaded' });
+	await page.evaluate(() => {
+		localStorage.setItem('fluora.ttsPreference', 'google-cloud-standard');
+		localStorage.setItem('fluora_user', JSON.stringify({ email: 'voice-sandbox@example.com' }));
+	});
+}
+
+async function runFluoraScenario(name: string, runtime: ScenarioRuntime): Promise<void> {
+	if (name === 'fluora-echo-filter') return runEchoFilter(runtime);
+	if (name === 'fluora-stt-warmup') return runSttWarmup(runtime);
 	return runCutoff(runtime);
 }
 
-async function seedNudgeAuth(page: Page): Promise<void> {
-	await page.goto('/login', { waitUntil: 'domcontentloaded' });
-	await page.evaluate((token) => {
-		localStorage.setItem('nudge_token', token);
-		localStorage.setItem('nudge_tts_engine', 'grok');
-		localStorage.setItem('nudge_user', JSON.stringify({ email: 'voice-sandbox@example.com' }));
-	}, nudgeSandboxJwt());
-}
-
 async function openVoiceMode(runtime: ScenarioRuntime): Promise<void> {
-	await runtime.page.goto(
-		runtime.page.url().includes('/chat/') ? runtime.page.url() : '/chat/voice-cutoff-page-test'
-	);
 	await runtime.page.getByRole('button', { name: 'Start voice mode' }).click();
-	await runtime.page.getByText(/Ready|speak now|warming/i).waitFor({ state: 'visible' });
+	await runtime.page.getByText(/Ready|Listening|Connecting/i).waitFor({ state: 'visible' });
 	await waitFor(() => hasRecognition(runtime.page), 'sandbox speech recognition did not start');
 	runtime.emit('scenario:voiceModeReady');
 }
 
 async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
-	const state = getNudgeState(runtime);
+	const state = getFluoraState(runtime);
 	await openVoiceMode(runtime);
 	await emitSpeech(runtime, 'hello can you hear me');
-	await waitFor(() => state.streamRequests.length === 1, 'first user speech was not submitted');
+	await waitFor(
+		() => state.conversationRequests.length === 1,
+		'first user speech was not submitted'
+	);
 	await waitFor(
 		() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'),
 		'native TTS did not start'
@@ -68,16 +67,20 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 		'app audio did not reach sandbox mic'
 	);
 	await runtime.page.waitForTimeout(250);
-	assertEqual(state.streamRequests.length, 1, 'app audio loopback should not submit a user turn');
+	assertEqual(
+		state.conversationRequests.length,
+		1,
+		'app audio loopback should not submit a user turn'
+	);
 	assertEqual(
 		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
 		0,
 		'app audio loopback should not stop itself'
 	);
 	await emitSpeech(runtime, 'Hi Daniel wait stop please');
-	await waitFor(() => state.streamRequests.length === 2, 'cutoff speech was not submitted');
+	await waitFor(() => state.conversationRequests.length === 2, 'cutoff speech was not submitted');
 	assertEqual(
-		state.streamRequests[1],
+		state.conversationRequests[1],
 		'wait stop please',
 		'cutoff speech should drop echoed prefix'
 	);
@@ -88,7 +91,7 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 }
 
 async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
-	const state = getNudgeState(runtime);
+	const state = getFluoraState(runtime);
 	await openVoiceMode(runtime);
 	await emitSpeech(runtime, 'hello can you hear me');
 	await waitFor(() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'), 'TTS did not start');
@@ -97,7 +100,11 @@ async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
 		'app audio did not reach sandbox mic'
 	);
 	await runtime.page.waitForTimeout(900);
-	assertEqual(state.streamRequests.length, 1, 'assistant echo should not create a new AI request');
+	assertEqual(
+		state.conversationRequests.length,
+		1,
+		'assistant echo should not create a new AI request'
+	);
 	assertEqual(
 		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
 		0,
@@ -106,26 +113,30 @@ async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
 }
 
 async function runSttWarmup(runtime: ScenarioRuntime): Promise<void> {
-	const state = getNudgeState(runtime);
+	const state = getFluoraState(runtime);
 	await openVoiceMode(runtime);
 	await runtime.page.waitForTimeout(300);
 	await emitSpeech(runtime, 'hello after warmup');
-	await waitFor(() => state.streamRequests.length === 1, 'speech after warmup was not submitted');
-	assertEqual(state.streamRequests[0], 'hello after warmup', 'warmup speech should be preserved');
+	await waitFor(
+		() => state.conversationRequests.length === 1,
+		'speech after warmup was not submitted'
+	);
+	assertEqual(
+		state.conversationRequests[0],
+		'hello after warmup',
+		'warmup speech should be preserved'
+	);
 }
 
-function getNudgeState(runtime: ScenarioRuntime): NudgeRouteState {
-	return (runtime as ScenarioRuntime & { nudgeState: NudgeRouteState }).nudgeState;
+function getFluoraState(runtime: ScenarioRuntime): FluoraRouteState {
+	return (runtime as ScenarioRuntime & { fluoraState: FluoraRouteState }).fluoraState;
 }
 
 async function emitSpeech(runtime: ScenarioRuntime, text: string, isFinal = true): Promise<void> {
 	await waitFor(() => hasRecognition(runtime.page), 'sandbox speech recognition did not start');
 	await runtime.page.evaluate(
 		(input) => window.__appAudioSandbox.emitSpeech(input.text, input.isFinal),
-		{
-			text,
-			isFinal
-		}
+		{ text, isFinal }
 	);
 }
 
