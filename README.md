@@ -27,8 +27,8 @@ app-audio-sandbox run --scenario nudge-voice-cutoff --audible
 is the only mode that allows sound to reach the speaker. `--real-tts` lets the
 target app's TTS endpoint generate listenable audio instead of the deterministic
 mock audio used by default. Recorded Nudge runs also include `review.html`, which
-plays captured app audio and scripted STT inputs on the same timeline so cutoff
-causes are audible during review.
+plays captured app audio and browser-friendly scripted STT WAV inputs on the same
+timeline so cutoff causes are audible during review.
 
 ## Built-In Scenarios
 

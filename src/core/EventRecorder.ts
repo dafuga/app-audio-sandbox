@@ -1,11 +1,12 @@
 import { execFile } from 'node:child_process';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, rm, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { createReviewHtml } from './reviewPage';
 import type { AudioCapture, SandboxEvent } from './types';
 
 const execFileAsync = promisify(execFile);
+const AFCONVERT_PATH = '/usr/bin/afconvert';
 const MACOS_SAY_PATH = '/usr/bin/say';
 
 export class EventRecorder {
@@ -68,7 +69,7 @@ export class EventRecorder {
 
 	private async captureSpeechReviewFiles(): Promise<Map<SandboxEvent, string>> {
 		const speechFiles = new Map<SandboxEvent, string>();
-		if (!(await canUseMacSpeech())) return speechFiles;
+		if (!(await canUseMacSpeechReview())) return speechFiles;
 		for (const event of this.events) {
 			if (event.type !== 'stt:result') continue;
 			const filePath = await this.captureSpeechReviewFile(event);
@@ -80,13 +81,18 @@ export class EventRecorder {
 	private async captureSpeechReviewFile(event: SandboxEvent): Promise<string | undefined> {
 		const text = String(event.payload?.text ?? '');
 		if (!text.trim()) return undefined;
-		const filePath = await this.nextAudioPath('scripted-stt', 'aiff');
-		await execFileAsync(MACOS_SAY_PATH, ['-o', filePath, text], { timeout: 15_000 });
+		const filePath = await this.nextAudioPath('scripted-stt', 'wav');
+		const aiffPath = `${filePath}.aiff`;
+		await execFileAsync(MACOS_SAY_PATH, ['-o', aiffPath, text], { timeout: 15_000 });
+		await execFileAsync(AFCONVERT_PATH, [aiffPath, filePath, '-f', 'WAVE', '-d', 'LEI16@22050'], {
+			timeout: 15_000
+		});
+		await rm(aiffPath, { force: true });
 		this.audioFiles.push(filePath);
 		this.add('stt:reviewAudio', {
 			eventTime: event.time,
 			file: filePath,
-			mimeType: 'audio/aiff',
+			mimeType: 'audio/wav',
 			source: 'scripted-stt',
 			text
 		});
@@ -94,9 +100,10 @@ export class EventRecorder {
 	}
 }
 
-async function canUseMacSpeech(): Promise<boolean> {
+async function canUseMacSpeechReview(): Promise<boolean> {
 	try {
 		await access(MACOS_SAY_PATH);
+		await access(AFCONVERT_PATH);
 		return true;
 	} catch {
 		return false;

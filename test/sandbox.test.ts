@@ -69,6 +69,7 @@ test('event recorder writes a review timeline page', async () => {
 	const html = await readFile(String(reviewFile), 'utf8');
 	expect(html).toContain('Voice Cutoff Review');
 	expect(html).toContain('wait stop please');
+	expect(html).toContain('.wav');
 });
 
 test('nudge sandbox jwt has a valid jwt shape', () => {
