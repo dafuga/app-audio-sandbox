@@ -62,7 +62,7 @@ async function openVoiceMode(runtime: ScenarioRuntime): Promise<void> {
 async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 	const state = getFluoraState(runtime);
 	await openVoiceMode(runtime);
-	await emitSpeech(runtime, 'hello can you hear me');
+	await emitSpeech(runtime, 'こんにちは 聞こえますか');
 	await waitFor(
 		() => state.conversationRequests.length === 1,
 		'first user speech was not submitted'
@@ -86,11 +86,11 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 		0,
 		'app audio loopback should not stop itself'
 	);
-	await emitSpeech(runtime, 'Hi Daniel wait stop please');
+	await emitSpeech(runtime, 'やあ ダニエル 待って止めてください');
 	await waitFor(() => state.conversationRequests.length === 2, 'cutoff speech was not submitted');
 	assertEqual(
 		state.conversationRequests[1],
-		'wait stop please',
+		'待って止めてください',
 		'cutoff speech should drop echoed prefix'
 	);
 	await waitFor(
@@ -102,7 +102,7 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
 	const state = getFluoraState(runtime);
 	await openVoiceMode(runtime);
-	await emitSpeech(runtime, 'hello can you hear me');
+	await emitSpeech(runtime, 'こんにちは 聞こえますか');
 	await waitFor(() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'), 'TTS did not start');
 	await waitFor(
 		() => hasEvent(runtime.page, 'mic:loopback'),
@@ -125,14 +125,14 @@ async function runSttWarmup(runtime: ScenarioRuntime): Promise<void> {
 	const state = getFluoraState(runtime);
 	await openVoiceMode(runtime);
 	await runtime.page.waitForTimeout(300);
-	await emitSpeech(runtime, 'hello after warmup');
+	await emitSpeech(runtime, 'ウォームアップの後でこんにちは');
 	await waitFor(
 		() => state.conversationRequests.length === 1,
 		'speech after warmup was not submitted'
 	);
 	assertEqual(
 		state.conversationRequests[0],
-		'hello after warmup',
+		'ウォームアップの後でこんにちは',
 		'warmup speech should be preserved'
 	);
 }

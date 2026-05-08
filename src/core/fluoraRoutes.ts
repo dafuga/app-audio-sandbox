@@ -54,12 +54,12 @@ function languagesRoute(route: Route): Promise<void> {
 					updated_at: 0,
 					language: {
 						id: 1,
-						code: 'es',
-						name: 'Spanish',
-						native_name: 'Espanol',
+						code: 'ja',
+						name: 'Japanese',
+						native_name: 'Nihongo',
 						flag_emoji: null,
 						active: 1,
-						has_alphabet: 0
+						has_alphabet: 1
 					}
 				}
 			]

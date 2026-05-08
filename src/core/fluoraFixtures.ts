@@ -16,7 +16,7 @@ export async function fulfillJson(route: Route, body: unknown, status = 200): Pr
 
 export function fluoraConversationFixture() {
 	return {
-		language: { id: 1, code: 'es', name: 'Spanish' },
+		language: { id: 1, code: 'ja', name: 'Japanese' },
 		conversation: {
 			id: Number(CONVERSATION_ID),
 			scenario: 'greeting',
@@ -27,8 +27,8 @@ export function fluoraConversationFixture() {
 
 export function fluoraAiText(requestNumber: number): string {
 	return requestNumber === 1
-		? 'Hi Daniel. I am still talking and should stop when interrupted.'
-		: 'Okay. I stopped.';
+		? 'やあ ダニエル。まだ話しています。割り込まれたら止まるはずです。'
+		: 'はい。止まりました。';
 }
 
 export function fakeAudioBase64(text: string): string {
