@@ -1,6 +1,12 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
+import { promisify } from 'node:util';
+import { createReviewHtml } from './reviewPage';
 import type { AudioCapture, SandboxEvent } from './types';
+
+const execFileAsync = promisify(execFile);
+const MACOS_SAY_PATH = '/usr/bin/say';
 
 export class EventRecorder {
 	private readonly audioFiles: string[] = [];
@@ -29,6 +35,15 @@ export class EventRecorder {
 		});
 	}
 
+	async writeReviewPage(): Promise<string | undefined> {
+		const speechFiles = await this.captureSpeechReviewFiles();
+		const html = createReviewHtml(this.events, this.artifactDir, speechFiles);
+		if (!html) return undefined;
+		const filePath = join(this.artifactDir, 'review.html');
+		await writeFile(filePath, html);
+		return filePath;
+	}
+
 	async writeEvents(): Promise<string> {
 		const filePath = join(this.artifactDir, 'events.json');
 		await mkdir(this.artifactDir, { recursive: true });
@@ -42,6 +57,49 @@ export class EventRecorder {
 
 	getEvents(): SandboxEvent[] {
 		return [...this.events];
+	}
+
+	private async nextAudioPath(name: string, extension: string): Promise<string> {
+		const fileName = `${safeName(name)}-${this.audioFiles.length + 1}.${extension}`;
+		const filePath = join(this.artifactDir, 'audio', fileName);
+		await mkdir(join(this.artifactDir, 'audio'), { recursive: true });
+		return filePath;
+	}
+
+	private async captureSpeechReviewFiles(): Promise<Map<SandboxEvent, string>> {
+		const speechFiles = new Map<SandboxEvent, string>();
+		if (!(await canUseMacSpeech())) return speechFiles;
+		for (const event of this.events) {
+			if (event.type !== 'stt:result') continue;
+			const filePath = await this.captureSpeechReviewFile(event);
+			if (filePath) speechFiles.set(event, filePath);
+		}
+		return speechFiles;
+	}
+
+	private async captureSpeechReviewFile(event: SandboxEvent): Promise<string | undefined> {
+		const text = String(event.payload?.text ?? '');
+		if (!text.trim()) return undefined;
+		const filePath = await this.nextAudioPath('scripted-stt', 'aiff');
+		await execFileAsync(MACOS_SAY_PATH, ['-o', filePath, text], { timeout: 15_000 });
+		this.audioFiles.push(filePath);
+		this.add('stt:reviewAudio', {
+			eventTime: event.time,
+			file: filePath,
+			mimeType: 'audio/aiff',
+			source: 'scripted-stt',
+			text
+		});
+		return filePath;
+	}
+}
+
+async function canUseMacSpeech(): Promise<boolean> {
+	try {
+		await access(MACOS_SAY_PATH);
+		return true;
+	} catch {
+		return false;
 	}
 }
 

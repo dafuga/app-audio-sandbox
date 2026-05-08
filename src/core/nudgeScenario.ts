@@ -56,13 +56,13 @@ async function openVoiceMode(runtime: ScenarioRuntime): Promise<void> {
 async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 	const state = getNudgeState(runtime);
 	await openVoiceMode(runtime);
-	await emitSpeech(runtime.page, 'hello can you hear me');
+	await emitSpeech(runtime, 'hello can you hear me');
 	await waitFor(() => state.streamRequests.length === 1, 'first user speech was not submitted');
 	await waitFor(
 		() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'),
 		'native TTS did not start'
 	);
-	await emitSpeech(runtime.page, 'Hi Daniel wait stop please');
+	await emitSpeech(runtime, 'Hi Daniel wait stop please');
 	await waitFor(() => state.streamRequests.length === 2, 'cutoff speech was not submitted');
 	assertEqual(
 		state.streamRequests[1],
@@ -78,13 +78,9 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
 	const state = getNudgeState(runtime);
 	await openVoiceMode(runtime);
-	await emitSpeech(runtime.page, 'hello can you hear me');
+	await emitSpeech(runtime, 'hello can you hear me');
 	await waitFor(() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'), 'TTS did not start');
-	await emitSpeech(
-		runtime.page,
-		'Hi Daniel I am still talking and should stop when interrupted',
-		false
-	);
+	await emitSpeech(runtime, 'Hi Daniel I am still talking and should stop when interrupted', false);
 	await runtime.page.waitForTimeout(900);
 	assertEqual(state.streamRequests.length, 1, 'assistant echo should not create a new AI request');
 }
@@ -93,7 +89,7 @@ async function runSttWarmup(runtime: ScenarioRuntime): Promise<void> {
 	const state = getNudgeState(runtime);
 	await openVoiceMode(runtime);
 	await runtime.page.waitForTimeout(300);
-	await emitSpeech(runtime.page, 'hello after warmup');
+	await emitSpeech(runtime, 'hello after warmup');
 	await waitFor(() => state.streamRequests.length === 1, 'speech after warmup was not submitted');
 	assertEqual(state.streamRequests[0], 'hello after warmup', 'warmup speech should be preserved');
 }
@@ -102,11 +98,14 @@ function getNudgeState(runtime: ScenarioRuntime): NudgeRouteState {
 	return (runtime as ScenarioRuntime & { nudgeState: NudgeRouteState }).nudgeState;
 }
 
-async function emitSpeech(page: Page, text: string, isFinal = true): Promise<void> {
-	await page.evaluate((input) => window.__appAudioSandbox.emitSpeech(input.text, input.isFinal), {
-		text,
-		isFinal
-	});
+async function emitSpeech(runtime: ScenarioRuntime, text: string, isFinal = true): Promise<void> {
+	await runtime.page.evaluate(
+		(input) => window.__appAudioSandbox.emitSpeech(input.text, input.isFinal),
+		{
+			text,
+			isFinal
+		}
+	);
 }
 
 async function hasEvent(page: Page, type: string): Promise<boolean> {

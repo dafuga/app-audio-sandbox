@@ -67,6 +67,7 @@ export interface SandboxRunResult {
 	artifactsDir: string;
 	audioFiles: string[];
 	eventsFile: string;
+	reviewFile?: string;
 	screenshotFile?: string;
 	scenario: string;
 	traceFile?: string;

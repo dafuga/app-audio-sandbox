@@ -55,12 +55,14 @@ export class PlaywrightRunnerAdapter {
 		const video = page.video();
 		await context.tracing.stop({ path: traceFile });
 		await context.close();
+		const reviewFile = await input.recorder.writeReviewPage();
 		const eventsFile = await input.recorder.writeEvents();
 		const videoFiles = video ? [await video.path()] : [];
 		return createRunResult({
 			artifactDir: input.artifactDir,
 			eventsFile,
 			recorder: input.recorder,
+			reviewFile,
 			scenario: input.scenario.name,
 			screenshotFile,
 			traceFile,

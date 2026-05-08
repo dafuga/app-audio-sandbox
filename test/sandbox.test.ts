@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
@@ -53,6 +53,22 @@ test('event recorder writes events and captured audio files', async () => {
 	const eventsFile = await recorder.writeEvents();
 	expect(recorder.getAudioFiles()).toHaveLength(1);
 	expect(await readFile(eventsFile, 'utf8')).toContain('audio:capture');
+});
+
+test('event recorder writes a review timeline page', async () => {
+	const dir = await mkdtemp(join(tmpdir(), 'audio-sandbox-'));
+	tempDirs.push(dir);
+	await mkdir(join(dir, 'audio'), { recursive: true });
+	await writeFile(join(dir, 'audio', 'ai.mp3'), 'ai');
+	const recorder = new EventRecorder(dir);
+	recorder.add('audio:capture', { file: join(dir, 'audio', 'ai.mp3'), source: 'nativeAudio' });
+	recorder.add('stt:result', { text: 'wait stop please' });
+	recorder.add('nativeAudio:stopVoicePlayback');
+	const reviewFile = await recorder.writeReviewPage();
+	expect(reviewFile).toBe(join(dir, 'review.html'));
+	const html = await readFile(String(reviewFile), 'utf8');
+	expect(html).toContain('Voice Cutoff Review');
+	expect(html).toContain('wait stop please');
 });
 
 test('nudge sandbox jwt has a valid jwt shape', () => {
