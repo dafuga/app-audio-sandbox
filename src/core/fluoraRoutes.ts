@@ -15,6 +15,10 @@ export interface FluoraRouteState {
 export async function installFluoraRoutes(runtime: ScenarioRuntime): Promise<FluoraRouteState> {
 	const state: FluoraRouteState = { conversationRequests: [], ttsRequests: [] };
 	await runtime.page.route(/\/api\/auth\/me(?:\?|$)/, (route) => authRoute(route));
+	await runtime.page.route(/\/api\/languages(?:\?|$)/, (route) => languagesRoute(route));
+	await runtime.page.route(/\/api\/notifications\/presence(?:\?|$)/, (route) =>
+		fulfillJson(route, { success: true })
+	);
 	await runtime.page.route(/\/api\/conversation(?:\?|$)/, (route) =>
 		conversationRoute(route, runtime, state)
 	);
@@ -25,14 +29,40 @@ export async function installFluoraRoutes(runtime: ScenarioRuntime): Promise<Flu
 
 function authRoute(route: Route): Promise<void> {
 	return fulfillJson(route, {
+		user: {
+			id: 1,
+			email: 'voice-sandbox@example.com',
+			name: 'Voice Sandbox',
+			active_language_id: 1
+		}
+	});
+}
+
+function languagesRoute(route: Route): Promise<void> {
+	return fulfillJson(route, {
 		success: true,
 		data: {
-			user: {
-				id: 1,
-				email: 'voice-sandbox@example.com',
-				name: 'Voice Sandbox',
-				active_language_id: 1
-			}
+			userLanguages: [
+				{
+					id: 1,
+					user_id: 1,
+					language_id: 1,
+					level: 'beginner',
+					daily_goal: 10,
+					study_allocation_percent: 100,
+					created_at: 0,
+					updated_at: 0,
+					language: {
+						id: 1,
+						code: 'es',
+						name: 'Spanish',
+						native_name: 'Espanol',
+						flag_emoji: null,
+						active: 1,
+						has_alphabet: 0
+					}
+				}
+			]
 		}
 	});
 }

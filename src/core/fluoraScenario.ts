@@ -5,7 +5,7 @@ import { fluoraConversationUrl } from './fluoraFixtures';
 import { installFluoraRoutes, type FluoraRouteState } from './fluoraRoutes';
 import type { SandboxScenario, ScenarioRuntime } from './types';
 
-const DEFAULT_FLUORA_URL = 'http://127.0.0.1:8899';
+const DEFAULT_FLUORA_URL = 'http://localhost:8899';
 const DEFAULT_FLUORA_CWD = '/Users/danielfugere/projects/fluora';
 
 export function createFluoraScenario(name: string): SandboxScenario {
@@ -25,15 +25,24 @@ export function createFluoraScenario(name: string): SandboxScenario {
 
 async function setupFluoraScenario(runtime: ScenarioRuntime): Promise<void> {
 	const state = await installFluoraRoutes(runtime);
-	await seedFluoraAuth(runtime.page);
+	await seedFluoraAuth(runtime);
 	(runtime as ScenarioRuntime & { fluoraState: FluoraRouteState }).fluoraState = state;
 }
 
-async function seedFluoraAuth(page: Page): Promise<void> {
-	await page.goto('/login', { waitUntil: 'domcontentloaded' });
-	await page.evaluate(() => {
+async function seedFluoraAuth(runtime: ScenarioRuntime): Promise<void> {
+	await runtime.context.addInitScript(() => {
+		localStorage.setItem('jwt', 'voice-sandbox-token');
+		localStorage.setItem('fluora_token', 'voice-sandbox-token');
 		localStorage.setItem('fluora.ttsPreference', 'google-cloud-standard');
-		localStorage.setItem('fluora_user', JSON.stringify({ email: 'voice-sandbox@example.com' }));
+		localStorage.setItem(
+			'fluora_user',
+			JSON.stringify({
+				id: 1,
+				email: 'voice-sandbox@example.com',
+				name: 'Voice Sandbox',
+				active_language_id: 1
+			})
+		);
 	});
 }
 
@@ -70,7 +79,7 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 	assertEqual(
 		state.conversationRequests.length,
 		1,
-		'app audio loopback should not submit a user turn'
+		`app audio loopback should not submit a user turn (${JSON.stringify(state.conversationRequests)})`
 	);
 	assertEqual(
 		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
