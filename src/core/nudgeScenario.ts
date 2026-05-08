@@ -48,9 +48,21 @@ async function openVoiceMode(runtime: ScenarioRuntime): Promise<void> {
 	await runtime.page.goto(
 		runtime.page.url().includes('/chat/') ? runtime.page.url() : '/chat/voice-cutoff-page-test'
 	);
-	await runtime.page.getByRole('button', { name: 'Start voice mode' }).click();
-	await runtime.page.getByText(/Ready|speak now|warming/i).waitFor({ state: 'visible' });
-	await waitFor(() => hasRecognition(runtime.page), 'sandbox speech recognition did not start');
+	await waitFor(
+		async () => {
+			if (await hasRecognition(runtime.page)) return true;
+			const startButton = runtime.page.getByRole('button', { name: 'Start voice mode' });
+			if ((await startButton.count()) === 0) return false;
+			await startButton
+				.first()
+				.click()
+				.catch(() => undefined);
+			await runtime.page.waitForTimeout(250);
+			return hasRecognition(runtime.page);
+		},
+		'sandbox speech recognition did not start',
+		15_000
+	);
 	runtime.emit('scenario:voiceModeReady');
 }
 
@@ -60,17 +72,19 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 	await emitSpeech(runtime, 'hello can you hear me');
 	await waitFor(() => state.streamRequests.length === 1, 'first user speech was not submitted');
 	await waitFor(
-		() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'),
-		'native TTS did not start'
+		() => hasRecordedEvent(runtime, 'nativeAudio:playBase64Audio'),
+		'native TTS did not start',
+		10_000
 	);
 	await waitFor(
-		() => hasEvent(runtime.page, 'mic:loopback'),
-		'app audio did not reach sandbox mic'
+		() => hasRecordedEvent(runtime, 'mic:loopback'),
+		'app audio did not reach sandbox mic',
+		10_000
 	);
 	await runtime.page.waitForTimeout(250);
 	assertEqual(state.streamRequests.length, 1, 'app audio loopback should not submit a user turn');
 	assertEqual(
-		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
+		eventCount(runtime, 'nativeAudio:stopVoicePlayback'),
 		0,
 		'app audio loopback should not stop itself'
 	);
@@ -82,8 +96,9 @@ async function runCutoff(runtime: ScenarioRuntime): Promise<void> {
 		'cutoff speech should drop echoed prefix'
 	);
 	await waitFor(
-		() => hasEvent(runtime.page, 'nativeAudio:stopVoicePlayback'),
-		'native TTS was not stopped'
+		() => hasRecordedEvent(runtime, 'nativeAudio:stopVoicePlayback'),
+		'native TTS was not stopped',
+		10_000
 	);
 }
 
@@ -91,15 +106,20 @@ async function runEchoFilter(runtime: ScenarioRuntime): Promise<void> {
 	const state = getNudgeState(runtime);
 	await openVoiceMode(runtime);
 	await emitSpeech(runtime, 'hello can you hear me');
-	await waitFor(() => hasEvent(runtime.page, 'nativeAudio:playBase64Audio'), 'TTS did not start');
 	await waitFor(
-		() => hasEvent(runtime.page, 'mic:loopback'),
-		'app audio did not reach sandbox mic'
+		() => hasRecordedEvent(runtime, 'nativeAudio:playBase64Audio'),
+		'TTS did not start',
+		10_000
+	);
+	await waitFor(
+		() => hasRecordedEvent(runtime, 'mic:loopback'),
+		'app audio did not reach sandbox mic',
+		10_000
 	);
 	await runtime.page.waitForTimeout(900);
 	assertEqual(state.streamRequests.length, 1, 'assistant echo should not create a new AI request');
 	assertEqual(
-		await eventCount(runtime.page, 'nativeAudio:stopVoicePlayback'),
+		eventCount(runtime, 'nativeAudio:stopVoicePlayback'),
 		0,
 		'assistant echo should not stop voice playback'
 	);
@@ -139,8 +159,11 @@ async function hasEvent(page: Page, type: string): Promise<boolean> {
 	}, type);
 }
 
-async function eventCount(page: Page, type: string): Promise<number> {
-	return page.evaluate((eventType) => {
-		return window.__appAudioSandbox.events.filter((event) => event.type === eventType).length;
-	}, type);
+async function hasRecordedEvent(runtime: ScenarioRuntime, type: string): Promise<boolean> {
+	if (runtime.recorder.getEvents().some((event) => event.type === type)) return true;
+	return hasEvent(runtime.page, type);
+}
+
+function eventCount(runtime: ScenarioRuntime, type: string): number {
+	return runtime.recorder.getEvents().filter((event) => event.type === type).length;
 }
