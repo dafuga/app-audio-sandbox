@@ -1,0 +1,58 @@
+{
+	"name": "@dafuga/app-audio-sandbox",
+	"version": "0.1.0",
+	"description": "A Playwright-powered silent audio sandbox for app voice flows.",
+	"type": "module",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dafuga/app-audio-sandbox.git"
+	},
+	"bin": {
+		"app-audio-sandbox": "dist/commands/cli.js",
+		"audio-sandbox": "dist/commands/cli.js"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"harness": {
+		"kind": "lib"
+	},
+	"scripts": {
+		"build": "rm -rf dist && bun build src/index.ts src/commands/cli.ts --target node --outdir dist --external playwright && tsc -p tsconfig.types.json",
+		"check": "bun run format:check && bun run typecheck && bun run lint && bun run test && bun run build && bun run audit",
+		"typecheck": "tsc --noEmit",
+		"format:check": "prettier --check .",
+		"format": "prettier --write .",
+		"lint": "eslint .",
+		"audit": "bun scripts/harness-audit.ts",
+		"test": "bun run test:unit",
+		"test:unit": "vitest run",
+		"prepack": "bun run build"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.25.1",
+		"@types/bun": "^1.2.18",
+		"@types/node": "^25.6.2",
+		"@typescript-eslint/eslint-plugin": "^8.31.1",
+		"@typescript-eslint/parser": "^8.31.1",
+		"eslint": "^9.25.1",
+		"eslint-config-prettier": "^10.1.2",
+		"prettier": "^3.5.3",
+		"typescript": "^5.8.3",
+		"vitest": "^3.1.2"
+	},
+	"dependencies": {
+		"commander": "^14.0.3",
+		"playwright": "^1.59.1"
+	}
+}

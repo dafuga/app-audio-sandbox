@@ -1,0 +1,55 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, expect, test } from 'vitest';
+import { createBrowserInstrumentationScript } from '../src/adapters/browserInstrumentation';
+import { resolveMode } from '../src/config/sandboxConfig';
+import { EventRecorder } from '../src/core/EventRecorder';
+import { listScenarios } from '../src/core/scenarios';
+
+let tempDirs: string[] = [];
+
+afterEach(async () => {
+	await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+	tempDirs = [];
+});
+
+test('resolves sandbox modes from CLI options', () => {
+	expect(resolveMode({ scenario: 'nudge-voice-cutoff' })).toBe('silent');
+	expect(resolveMode({ scenario: 'nudge-voice-cutoff', recordAudio: true })).toBe('record-audio');
+	expect(resolveMode({ scenario: 'nudge-voice-cutoff', audible: true })).toBe('audible');
+});
+
+test('lists built-in nudge scenarios', () => {
+	expect(listScenarios()).toContain('nudge-voice-cutoff');
+	expect(listScenarios()).toContain('nudge-echo-filter');
+	expect(listScenarios()).toContain('nudge-native-tts-routing');
+	expect(listScenarios()).toContain('nudge-stt-warmup');
+});
+
+test('browser instrumentation installs muted audio hooks', () => {
+	const script = createBrowserInstrumentationScript({
+		mode: 'record-audio',
+		nativeAudio: true,
+		nativeDurationMs: 1000
+	});
+	expect(script).toContain('__appAudioSandboxNativeVoicePlayback');
+	expect(script).toContain('SpeechRecognition');
+	expect(script).toContain('HTMLMediaElement.prototype.play');
+});
+
+test('event recorder writes events and captured audio files', async () => {
+	const dir = await mkdtemp(join(tmpdir(), 'audio-sandbox-'));
+	tempDirs.push(dir);
+	const recorder = new EventRecorder(dir);
+	recorder.add('tts:request', { provider: 'grok' });
+	await recorder.captureAudio({
+		base64: Buffer.from('audio').toString('base64'),
+		mimeType: 'audio/mpeg',
+		name: 'clip',
+		source: 'nativeAudio'
+	});
+	const eventsFile = await recorder.writeEvents();
+	expect(recorder.getAudioFiles()).toHaveLength(1);
+	expect(await readFile(eventsFile, 'utf8')).toContain('audio:capture');
+});
